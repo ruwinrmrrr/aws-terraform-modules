@@ -214,6 +214,7 @@ variable "cluster_instances" {
   description = "List of cluster instances"
   type = map(object({
     name                         = string
+    instance_name_override       = optional(string, null)
     custom_iam_instance_profile  = optional(string)
     db_parameter_group_name      = optional(string)
     instance_class               = optional(string)

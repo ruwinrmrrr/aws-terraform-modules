@@ -11,6 +11,7 @@
 
 # Global Budget for all tagged resources
 resource "aws_budgets_budget" "global" {
+  count        = var.create_global_budget ? 1 : 0
   name         = join("-", [var.global_budget_name, var.global_budget_abbreviation])
   budget_type  = "COST"
   limit_amount = var.cost

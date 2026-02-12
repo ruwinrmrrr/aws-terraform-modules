@@ -113,3 +113,8 @@ variable "capacity_type" {
   description = "Capacity type for the node group. Valid values: ON_DEMAND | SPOT"
   default     = "ON_DEMAND"
 }
+variable "is_custom_ami" {
+  type       = bool
+  description = "Flag to indicate if a custom AMI is used"
+  default = true
+}

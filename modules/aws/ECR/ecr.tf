@@ -32,59 +32,96 @@ resource "aws_ecr_repository" "ecr_repository" {
   }
 }
 
-data "aws_iam_policy_document" "admin_policy" {
-  statement {
-    sid    = "External Admin policy"
-    effect = "Allow"
+data "aws_iam_policy_document" "combined_policy_doc" {
 
-    principals {
-      type        = "AWS"
-      identifiers = var.external_admin_account_ids
+  # Dynamic Block 1: Admin Permissions
+  # Only adds this statement if admin IDs are provided
+  dynamic "statement" {
+    for_each = length(var.external_admin_account_ids) > 0 ? [1] : []
+
+    content {
+      sid    = "External Admin policy"
+      effect = "Allow"
+
+      principals {
+        type        = "AWS"
+        identifiers = var.external_admin_account_ids
+      }
+
+      actions = [
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:PutImage",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload",
+        "ecr:DescribeRepositories",
+        "ecr:GetRepositoryPolicy",
+        "ecr:ListImages",
+        "ecr:DeleteRepository",
+        "ecr:BatchDeleteImage",
+        "ecr:SetRepositoryPolicy",
+        "ecr:DeleteRepositoryPolicy",
+      ]
     }
+  }
 
-    actions = [
-      "ecr:GetDownloadUrlForLayer",
-      "ecr:BatchGetImage",
-      "ecr:BatchCheckLayerAvailability",
-      "ecr:PutImage",
-      "ecr:InitiateLayerUpload",
-      "ecr:UploadLayerPart",
-      "ecr:CompleteLayerUpload",
-      "ecr:DescribeRepositories",
-      "ecr:GetRepositoryPolicy",
-      "ecr:ListImages",
-      "ecr:DeleteRepository",
-      "ecr:BatchDeleteImage",
-      "ecr:SetRepositoryPolicy",
-      "ecr:DeleteRepositoryPolicy",
-    ]
+  # Dynamic Block 2: Pull-Only Permissions
+  # Only adds this statement if pull IDs are provided (prevents "Invalid Parameter" error)
+  dynamic "statement" {
+    for_each = length(var.external_pull_only_account_ids) > 0 ? [1] : []
+
+    content {
+      sid    = "External Pull only policy"
+      effect = "Allow"
+
+      principals {
+        type        = "AWS"
+        identifiers = var.external_pull_only_account_ids
+      }
+
+      actions = [
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage",
+        "ecr:BatchCheckLayerAvailability"
+      ]
+    }
   }
 }
 
-resource "aws_ecr_repository_policy" "admin_policy" {
+# resource "aws_ecr_repository_policy" "admin_policy" {
+#   repository = aws_ecr_repository.ecr_repository.name
+#   policy     = data.aws_iam_policy_document.combined_policy_doc.json
+# }
+
+# data "aws_iam_policy_document" "pull_only_policy" {
+#   statement {
+#     sid    = "External Pull only policy"
+#     effect = "Allow"
+
+#     principals {
+#       type        = "AWS"
+#       identifiers = var.external_pull_only_account_ids
+#     }
+
+#     actions = [
+#       "ecr:GetDownloadUrlForLayer",
+#       "ecr:BatchGetImage",
+#       "ecr:BatchCheckLayerAvailability"
+#     ]
+#   }
+# }
+
+# resource "aws_ecr_repository_policy" "pull_only_policy" {
+#   repository = aws_ecr_repository.ecr_repository.name
+#   policy     = data.aws_iam_policy_document.pull_only_policy.json
+# }
+
+resource "aws_ecr_repository_policy" "main_policy" {
+  # Only create if at least one list has accounts in it
+  count = (length(var.external_admin_account_ids) > 0 || length(var.external_pull_only_account_ids) > 0) ? 1 : 0
+
   repository = aws_ecr_repository.ecr_repository.name
-  policy     = data.aws_iam_policy_document.admin_policy.json
-}
-
-data "aws_iam_policy_document" "pull_only_policy" {
-  statement {
-    sid    = "External Pull only policy"
-    effect = "Allow"
-
-    principals {
-      type        = "AWS"
-      identifiers = var.external_pull_only_account_ids
-    }
-
-    actions = [
-      "ecr:GetDownloadUrlForLayer",
-      "ecr:BatchGetImage",
-      "ecr:BatchCheckLayerAvailability"
-    ]
-  }
-}
-
-resource "aws_ecr_repository_policy" "pull_only_policy" {
-  repository = aws_ecr_repository.ecr_repository.name
-  policy     = data.aws_iam_policy_document.pull_only_policy.json
+  policy     = data.aws_iam_policy_document.combined_policy_doc.json
 }

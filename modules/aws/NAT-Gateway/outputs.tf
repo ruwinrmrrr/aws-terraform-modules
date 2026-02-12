@@ -23,3 +23,8 @@ output "public_ip_allocation_id" {
   value      = aws_eip.eip.id
   depends_on = [aws_eip.eip]
 }
+
+output "name" {
+  value = local.natg_name
+  depends_on = [ aws_nat_gateway.nat_gateway ]
+}

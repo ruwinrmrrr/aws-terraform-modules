@@ -31,6 +31,12 @@ variable "per_service_budget_abbreviation" {
   default     = "service-budget"
 }
 
+variable "create_global_budget" {
+  description = "Set to true to create the global budget. Set to false to skip it."
+  type        = bool
+  default     = false
+}
+
 variable "cost" {
   type        = number
   description = "Total monthly budget amount in USD"

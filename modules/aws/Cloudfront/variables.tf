@@ -148,3 +148,27 @@ variable "log_prefix" {
   description = "An optional string that you want CloudFront to prefix to the access log filenames for this distribution"
   type        = string
 }
+
+variable "aliases" {
+  description = "List of aliases for the CloudFront distribution"
+  type        = list(string)
+  default     = null
+}
+
+variable "cloudfront_default_certificate" {
+  description = "Specifies whether to use the default CloudFront certificate"
+  type = bool
+  default = true
+}
+
+variable "cloudfront_acm_certificate_arn" {
+  description = "The ARN of the ACM certificate for the CloudFront distribution"
+  type = string
+  default = null
+}
+
+variable "cloudfront_ssl_support_method" {
+  description = "The SSL support method for the CloudFront distribution"
+  type = string
+  default = "sni-only"
+}

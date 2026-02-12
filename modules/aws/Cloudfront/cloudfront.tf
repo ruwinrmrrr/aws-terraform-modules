@@ -35,6 +35,8 @@ resource "aws_cloudfront_distribution" "cloudfront_distribution" {
   is_ipv6_enabled = var.is_ipv6_enabled
   comment         = var.comment
 
+  aliases = var.aliases
+
   logging_config {
     bucket          = var.log_bucket_name
     include_cookies = var.log_include_cookies
@@ -84,7 +86,9 @@ resource "aws_cloudfront_distribution" "cloudfront_distribution" {
   tags = var.tags
 
   viewer_certificate {
-    cloudfront_default_certificate = true
+    cloudfront_default_certificate = var.cloudfront_default_certificate
+    acm_certificate_arn            = var.cloudfront_acm_certificate_arn
+    ssl_support_method             = var.cloudfront_acm_certificate_arn != null ? var.cloudfront_ssl_support_method : null
   }
 
   web_acl_id = var.web_acl_id

@@ -13,3 +13,8 @@ output "route_table_id" {
   value      = aws_route_table.route_table.id
   depends_on = [aws_route_table.route_table]
 }
+
+output "name" {
+  value = local.rt_name
+  depends_on = [ aws_route_table.route_table ]
+}
