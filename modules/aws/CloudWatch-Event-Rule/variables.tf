@@ -1,6 +1,6 @@
 # -------------------------------------------------------------------------------------
 #
-# Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com) All Rights Reserved.
+# Copyright (c) 2026, WSO2 LLC. (https://www.wso2.com) All Rights Reserved.
 #
 # WSO2 LLC. licenses this file to you under the Apache License,
 # Version 2.0 (the "License"); you may not use this file except
@@ -23,6 +23,12 @@ variable "name" {
   type        = string
 }
 
+variable "abbreviation" {
+  description = "Suffix appended to the rule name as \"<name>-<abbreviation>\". Default kept as \"rule\" for backward compatibility with existing callers that don't set this - pass null/empty explicitly to use name as-is instead."
+  type        = string
+  default     = "rule"
+}
+
 variable "description" {
   description = "The description of the rule"
   type        = string
@@ -41,10 +47,10 @@ variable "schedule_expression" {
   default     = null
 }
 
-variable "is_enabled" {
-  description = "Whether the rule should be enabled"
-  type        = bool
-  default     = true
+variable "state" {
+  description = "The state of the rule"
+  type        = string
+  default     = "ENABLED"
 }
 
 variable "role_arn" {
