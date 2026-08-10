@@ -94,11 +94,16 @@ resource "aws_rds_cluster" "rds_cluster" {
   }
 
   tags = var.tags
+
+  # When a separate aws_rds_global_cluster resource attaches this cluster to a Global Database AWS sets global_cluster_identifier on the underlying cluster as a side effect. Ignoring changes here makes the external attachment resource the sole owner of that field.
+  lifecycle {
+    ignore_changes = [global_cluster_identifier]
+  }
 }
 
 resource "aws_rds_cluster_instance" "cluster_instances" {
   for_each           = var.cluster_instances
-  identifier         = "${local.cluster_name}-${each.value.name}"
+  identifier         = coalesce(each.value.instance_name_override, "${local.cluster_name}-${each.value.name}")
   cluster_identifier = aws_rds_cluster.rds_cluster.id
   instance_class     = var.db_cluster_instance_class == null ? each.value.instance_class : var.db_cluster_instance_class
   engine             = aws_rds_cluster.rds_cluster.engine
@@ -115,6 +120,7 @@ resource "aws_rds_cluster_instance" "cluster_instances" {
   preferred_maintenance_window = var.preferred_maintenance_window == null ? each.value.preferred_maintenance_window : var.preferred_maintenance_window
 
   publicly_accessible = var.publicly_accessible
+  apply_immediately    = var.apply_immediately
 
   tags = var.tags
 

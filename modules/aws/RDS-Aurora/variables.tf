@@ -210,11 +210,18 @@ variable "publicly_accessible" {
   default     = false
 }
 
+variable "apply_immediately" {
+  description = "Whether cluster-instance modifications apply immediately instead of waiting for the next preferred_maintenance_window"
+  type        = bool
+  default     = false
+}
+
 variable "cluster_instances" {
   description = "List of cluster instances"
   type = map(object({
     name                         = string
     custom_iam_instance_profile  = optional(string)
+    instance_name_override       = optional(string)
     db_parameter_group_name      = optional(string)
     instance_class               = optional(string)
     monitoring_interval          = optional(number, 0)
