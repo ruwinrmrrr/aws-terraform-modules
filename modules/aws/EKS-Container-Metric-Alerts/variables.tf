@@ -60,20 +60,10 @@ variable "info_alarm_actions" {
   description = "The ARNs of the actions to take when the alarm changes state to info"
   default     = []
 }
-variable "container_log_alerts" {
-  type = map(object({
-    priority            = string
-    comparison_operator = string
-    evaluation_periods  = number
-    time_window         = number
-    enabled             = optional(bool, true)
-    log_entry           = string
-    log_summary         = string
-    threshold           = number
-    k8s_container_name  = string
-  }))
-  description = "Container log alerts"
-  default     = {}
+variable "enable_alarm_actions" {
+  type        = bool
+  description = "Whether alarms actively notify (actions_enabled). Set false to create the alarms without them paging anyone yet."
+  default     = true
 }
 variable "metric_pod_alerts" {
   type = map(object({
@@ -86,7 +76,7 @@ variable "metric_pod_alerts" {
     evaluation_periods  = number
     period              = number
   }))
-  description = "Metric alerts"
+  description = "Pod-level Container Insights metric alerts"
   default = {
     avg_cpu_utilization_critical = {
       priority            = "Critical"
@@ -164,7 +154,7 @@ variable "metric_pod_alerts" {
       priority            = "Warning"
       comparison_operator = "GreaterThanOrEqualToThreshold"
       threshold           = 1
-      metric_name         = "pod_number_of_container_restart"
+      metric_name         = "pod_number_of_container_restarts"
       statistic           = "Sum"
       evaluation_periods  = 1
       period              = 60
@@ -173,7 +163,7 @@ variable "metric_pod_alerts" {
       priority            = "Critical"
       comparison_operator = "GreaterThanOrEqualToThreshold"
       threshold           = 5
-      metric_name         = "pod_number_of_container_restart"
+      metric_name         = "pod_number_of_container_restarts"
       statistic           = "Sum"
       evaluation_periods  = 1
       period              = 60
@@ -191,7 +181,7 @@ variable "metric_service_alerts" {
     evaluation_periods  = number
     period              = number
   }))
-  description = "Metric alerts"
+  description = "Service-level Container Insights metric alerts"
   default = {
     service_number_of_running_pods_warning = {
       priority            = "Warning"
