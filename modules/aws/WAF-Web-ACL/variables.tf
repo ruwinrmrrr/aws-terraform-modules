@@ -236,8 +236,20 @@ variable "rules" {
     rate_based_statement = optional(object({
       limit              = number
       aggregate_key_type = string
+      # Optional window in seconds (60, 120, 300 or 600); null keeps the AWS default (300).
+      evaluation_window_sec = optional(number)
+      # Optional keys for aggregate_key_type = "CUSTOM_KEYS"; each entry sets ip = true or a label_namespace.
+      custom_keys = optional(list(object({
+        ip              = optional(bool, false)
+        label_namespace = optional(string)
+      })), [])
       # Optional scope-down to count only requests matching this statement (per-URI/per-host rate limits); same shape as managed_rule_group_statement.scope_down_statement.
       scope_down_statement = optional(object({
+        # Optional label match, e.g. to rate-limit only requests labelled by earlier count rules.
+        label_match_statement = optional(object({
+          scope = string # LABEL | NAMESPACE
+          key   = string
+        }))
         byte_match_statement = optional(object({
           search_string         = string
           positional_constraint = string
@@ -400,6 +412,18 @@ variable "rules" {
       host_header        = string
       allowed_ip_set_arn = string
     }))
+
+    # Optional labels added to requests that match this rule (usually with action = count). Default adds none.
+    rule_labels = optional(list(string), [])
+
+    # Optional regex on the URI path. Renders as the regex alone, or as
+    # AND(regex, NOT(exclude_regex_string), [NOT] ip_set_arn) when either optional field is set.
+    uri_path_regex_match_statement = optional(object({
+      regex_string         = string
+      exclude_regex_string = optional(string)
+      ip_set_arn           = optional(string)
+      negate_ip_set        = optional(bool, false)
+    }))
   }))
 
   # Validation 1: AWS WAF requires an and_statement to have >= 2 nested statements
@@ -548,7 +572,7 @@ variable "rules" {
     error_message = "Each statement inside rate_based_statement.scope_down_statement.and_statement.statements / or_statement.statements (and their not_statement-nested variants) must specify exactly one of byte_match_statement or ip_set_reference_statement."
   }
 
-  # Validation 9: rate_based_statement.scope_down_statement must specify exactly one of byte_match_statement, ip_set_reference_statement, and_statement, or_statement, or not_statement.
+  # Validation 9: rate_based_statement.scope_down_statement must specify exactly one of byte_match_statement, ip_set_reference_statement, and_statement, or_statement, not_statement, or label_match_statement.
   validation {
     condition = alltrue([
       for v in var.rules :
@@ -556,10 +580,11 @@ variable "rules" {
       (try(v.rate_based_statement.scope_down_statement.ip_set_reference_statement, null) != null ? 1 : 0) +
       (try(v.rate_based_statement.scope_down_statement.and_statement, null) != null ? 1 : 0) +
       (try(v.rate_based_statement.scope_down_statement.or_statement, null) != null ? 1 : 0) +
-      (try(v.rate_based_statement.scope_down_statement.not_statement, null) != null ? 1 : 0) == 1
+      (try(v.rate_based_statement.scope_down_statement.not_statement, null) != null ? 1 : 0) +
+      (try(v.rate_based_statement.scope_down_statement.label_match_statement, null) != null ? 1 : 0) == 1
       if try(v.rate_based_statement.scope_down_statement, null) != null
     ])
-    error_message = "rate_based_statement.scope_down_statement must specify exactly one of byte_match_statement, ip_set_reference_statement, and_statement, or_statement, or not_statement."
+    error_message = "rate_based_statement.scope_down_statement must specify exactly one of byte_match_statement, ip_set_reference_statement, and_statement, or_statement, not_statement, or label_match_statement."
   }
   # Validation 10: When rate_based_statement.scope_down_statement.not_statement is used, exactly one of byte_match_statement, ip_set_reference_statement, and_statement, or or_statement must be set under it.
   validation {

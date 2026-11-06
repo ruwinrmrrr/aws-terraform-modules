@@ -114,6 +114,17 @@ resource "aws_wafv2_web_acl" "web_acl" {
               }
             }
           }
+          dynamic "count" {
+            for_each = action.value.type == "count" ? [1] : []
+            content {}
+          }
+        }
+      }
+
+      dynamic "rule_label" {
+        for_each = rule.value.rule_labels
+        content {
+          name = rule_label.value
         }
       }
 
@@ -448,12 +459,37 @@ resource "aws_wafv2_web_acl" "web_acl" {
         dynamic "rate_based_statement" {
           for_each = rule.value.rate_based_statement != null ? [rule.value.rate_based_statement] : []
           content {
-            limit              = rate_based_statement.value.limit
-            aggregate_key_type = rate_based_statement.value.aggregate_key_type
+            limit                 = rate_based_statement.value.limit
+            aggregate_key_type    = rate_based_statement.value.aggregate_key_type
+            evaluation_window_sec = rate_based_statement.value.evaluation_window_sec
+
+            dynamic "custom_key" {
+              for_each = rate_based_statement.value.custom_keys
+              content {
+                dynamic "ip" {
+                  for_each = custom_key.value.ip ? [1] : []
+                  content {}
+                }
+                dynamic "label_namespace" {
+                  for_each = custom_key.value.label_namespace != null ? [custom_key.value.label_namespace] : []
+                  content {
+                    namespace = label_namespace.value
+                  }
+                }
+              }
+            }
 
             dynamic "scope_down_statement" {
               for_each = try(rate_based_statement.value.scope_down_statement, null) != null ? [rate_based_statement.value.scope_down_statement] : []
               content {
+                dynamic "label_match_statement" {
+                  for_each = scope_down_statement.value.label_match_statement != null ? [scope_down_statement.value.label_match_statement] : []
+                  content {
+                    scope = label_match_statement.value.scope
+                    key   = label_match_statement.value.key
+                  }
+                }
+
                 # Direct byte_match_statement
                 dynamic "byte_match_statement" {
                   for_each = scope_down_statement.value.byte_match_statement != null ? [scope_down_statement.value.byte_match_statement] : []
@@ -748,6 +784,80 @@ resource "aws_wafv2_web_acl" "web_acl" {
                           }
                         }
                       }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        # uri_path_regex_match_statement without exclusion or IP set: the regex alone.
+        dynamic "regex_match_statement" {
+          for_each = rule.value.uri_path_regex_match_statement != null ? (try(rule.value.uri_path_regex_match_statement.exclude_regex_string, null) == null && try(rule.value.uri_path_regex_match_statement.ip_set_arn, null) == null ? [rule.value.uri_path_regex_match_statement] : []) : []
+          content {
+            regex_string = regex_match_statement.value.regex_string
+            field_to_match {
+              uri_path {}
+            }
+            text_transformation {
+              priority = 0
+              type     = "NONE"
+            }
+          }
+        }
+
+        # uri_path_regex_match_statement with exclusion or IP set:
+        #   AND(regex, NOT(exclude regex), [NOT] ip_set_reference)
+        dynamic "and_statement" {
+          for_each = rule.value.uri_path_regex_match_statement != null ? (try(rule.value.uri_path_regex_match_statement.exclude_regex_string, null) != null || try(rule.value.uri_path_regex_match_statement.ip_set_arn, null) != null ? [rule.value.uri_path_regex_match_statement] : []) : []
+          content {
+            statement {
+              regex_match_statement {
+                regex_string = and_statement.value.regex_string
+                field_to_match {
+                  uri_path {}
+                }
+                text_transformation {
+                  priority = 0
+                  type     = "NONE"
+                }
+              }
+            }
+            dynamic "statement" {
+              for_each = and_statement.value.exclude_regex_string != null ? [and_statement.value.exclude_regex_string] : []
+              content {
+                not_statement {
+                  statement {
+                    regex_match_statement {
+                      regex_string = statement.value
+                      field_to_match {
+                        uri_path {}
+                      }
+                      text_transformation {
+                        priority = 0
+                        type     = "NONE"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            dynamic "statement" {
+              for_each = and_statement.value.ip_set_arn != null && !and_statement.value.negate_ip_set ? [and_statement.value.ip_set_arn] : []
+              content {
+                ip_set_reference_statement {
+                  arn = statement.value
+                }
+              }
+            }
+            dynamic "statement" {
+              for_each = and_statement.value.ip_set_arn != null && and_statement.value.negate_ip_set ? [and_statement.value.ip_set_arn] : []
+              content {
+                not_statement {
+                  statement {
+                    ip_set_reference_statement {
+                      arn = statement.value
                     }
                   }
                 }
